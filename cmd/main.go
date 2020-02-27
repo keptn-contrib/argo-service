@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/keptn-contrib/argo-service/pkg/lib/argo"
+
 	"github.com/cloudevents/sdk-go/pkg/cloudevents"
 	"github.com/cloudevents/sdk-go/pkg/cloudevents/client"
 	cloudeventshttp "github.com/cloudevents/sdk-go/pkg/cloudevents/transport/http"
@@ -84,8 +86,7 @@ func promote(event cloudevents.Event, logger *keptnutils.Logger) error {
 
 		if strings.ToLower(data.DeploymentStrategy) == "blue_green_service" {
 			// Promote rollout
-			if _, err := keptnutils.ExecuteCommand("kubectl",
-				[]string{"argo", "rollouts", "promote", data.Service + "-" + data.Stage, "-n", data.Project + "-" + data.Stage}); err != nil {
+			if err := argo.Promote(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage); err != nil {
 				logger.Error(fmt.Sprintf("Error sending promotion event "+
 					"for service %s of project %s and stage %s: %s", data.Service, data.Project,
 					data.Stage, err.Error()))
@@ -99,8 +100,7 @@ func promote(event cloudevents.Event, logger *keptnutils.Logger) error {
 
 		if strings.ToLower(data.DeploymentStrategy) == "blue_green_service" {
 			// Abort rollout
-			if _, err := keptnutils.ExecuteCommand("kubectl",
-				[]string{"argo", "rollouts", "abort", data.Service + "-" + data.Stage, "-n", data.Project + "-" + data.Stage}); err != nil {
+			if err := argo.Abort(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage); err != nil {
 				logger.Error(fmt.Sprintf("Error sending promotion event "+
 					"for service %s of project %s and stage %s: %s", data.Service, data.Project,
 					data.Stage, err.Error()))
