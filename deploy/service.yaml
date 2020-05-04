@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: argo-service
-        image: agrimmer/argo-service:latest
+        image: keptn/argo-service:latest
         ports:
         - containerPort: 8080
         resources:
