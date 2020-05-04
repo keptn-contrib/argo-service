@@ -13,8 +13,7 @@ import (
 	"github.com/cloudevents/sdk-go/pkg/cloudevents/client"
 	cloudeventshttp "github.com/cloudevents/sdk-go/pkg/cloudevents/transport/http"
 
-	keptnevents "github.com/keptn/go-utils/pkg/events"
-	keptnutils "github.com/keptn/go-utils/pkg/utils"
+	keptnutils "github.com/keptn/go-utils/pkg/lib"
 
 	"github.com/kelseyhightower/envconfig"
 )
@@ -61,7 +60,7 @@ func gotEvent(ctx context.Context, event cloudevents.Event) error {
 
 	logger := keptnutils.NewLogger(shkeptncontext, event.Context.GetID(), "gatekeeper-service")
 
-	if event.Type() == keptnevents.EvaluationDoneEventType {
+	if event.Type() == keptnutils.EvaluationDoneEventType {
 		go promote(event, logger)
 	} else {
 		logger.Error("Received unexpected keptn event")
@@ -72,7 +71,7 @@ func gotEvent(ctx context.Context, event cloudevents.Event) error {
 
 func promote(event cloudevents.Event, logger *keptnutils.Logger) error {
 
-	data := &keptnevents.EvaluationDoneEventData{}
+	data := &keptnutils.EvaluationDoneEventData{}
 	if err := event.DataAs(data); err != nil {
 		logger.Error(fmt.Sprintf("Got Data Error: %s", err.Error()))
 		return err
@@ -86,12 +85,14 @@ func promote(event cloudevents.Event, logger *keptnutils.Logger) error {
 
 		if strings.ToLower(data.DeploymentStrategy) == "blue_green_service" {
 			// Promote rollout
-			if err := argo.Promote(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage); err != nil {
+			output, err := argo.Promote(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
+			if err != nil {
 				logger.Error(fmt.Sprintf("Error sending promotion event "+
 					"for service %s of project %s and stage %s: %s", data.Service, data.Project,
 					data.Stage, err.Error()))
 				return err
 			}
+			logger.Info(output)
 		}
 
 	} else {
@@ -100,12 +101,14 @@ func promote(event cloudevents.Event, logger *keptnutils.Logger) error {
 
 		if strings.ToLower(data.DeploymentStrategy) == "blue_green_service" {
 			// Abort rollout
-			if err := argo.Abort(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage); err != nil {
+			output, err := argo.Abort(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
+			if err != nil {
 				logger.Error(fmt.Sprintf("Error sending promotion event "+
 					"for service %s of project %s and stage %s: %s", data.Service, data.Project,
 					data.Stage, err.Error()))
 				return err
 			}
+			logger.Info(output)
 		}
 	}
 	return nil
