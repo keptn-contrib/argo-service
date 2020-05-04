@@ -3,8 +3,12 @@
 [![Build Status](https://travis-ci.org/keptn-contrib/argo-service.svg?branch=master)](https://travis-ci.org/keptn-contrib/argo-service)
 [![Go Report Card](https://goreportcard.com/badge/github.com/keptn-contrib/argo-service)](https://goreportcard.com/report/github.com/keptn-contrib/argo-service)
 
-This service is used for promoting [Argo rollouts](https://argoproj.github.io/argo-rollouts/), which have been tested and evaluated with Keptn.
-
+The Argo Service promotes [Argo rollouts](https://argoproj.github.io/argo-rollouts/), which have been tested and evaluated with Keptn.
+Therefore, this service listens on `sh.keptn.events.evaluation-done` events and depending on the evaluation result
+*promotes* or *aborts* a rollout.
+This Argo Service derives the name of the rollout as well as the namespace from the service, stage, and project infos contained in the event.
+More precisely, the rollout name is composed of `service`-`stage`
+and the namespace is composed of `project`-`stage`.
 
 ## Deploy the Keptn-Argo service in your Kubernetes cluster
 
