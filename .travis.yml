@@ -8,7 +8,7 @@ env:
     - GOPROXY=https://proxy.golang.org
 before_install:
   - export TZ=Europe/Vienna
-  - IMAGE=keptn/argo-service
+  - IMAGE=keptncontrib/argo-service
   - REPO_URL="$(git remote get-url --all origin)"
   # get the last tag
   - GIT_LAST_TAG=$(git describe --tags $(git rev-list --tags) || echo "0.0.0")
