@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: argo-service
-        image: keptn/argo-service:latest
+        image: keptn/argo-service:0.1.1
         ports:
         - containerPort: 8080
         resources:
@@ -27,7 +27,7 @@ spec:
             memory: "128Mi"
             cpu: "500m"
       - name: distributor
-        image: keptn/distributor:latest
+        image: keptn/distributor:0.7.0
         ports:
           - containerPort: 8080
         resources:
