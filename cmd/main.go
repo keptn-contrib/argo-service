@@ -4,8 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/cloudevents/sdk-go/pkg/cloudevents/types"
+	"github.com/google/uuid"
 
 	"github.com/keptn-contrib/argo-service/pkg/lib/argo"
 
@@ -77,6 +82,12 @@ func promote(event cloudevents.Event, logger *keptnutils.Logger) error {
 		return err
 	}
 
+	keptn, err := keptnutils.NewKeptn(&event, keptnutils.KeptnOpts{})
+	if err != nil {
+		logger.Info("failed to create keptn handler")
+		return err
+	}
+
 	// Evaluation has passed if we have result = pass or result = warning
 	if data.Result == "pass" || data.Result == "warning" {
 
@@ -93,6 +104,13 @@ func promote(event cloudevents.Event, logger *keptnutils.Logger) error {
 				return err
 			}
 			logger.Info(output)
+
+			return keptn.SendCloudEvent(getCloudEvent(PromoteEventData{
+				Project: data.Project,
+				Service: data.Service,
+				Stage:   data.Stage,
+				Action:  "promote",
+			}, "sh.keptn.event.release.finished", keptn.KeptnContext, event.ID()))
 		}
 
 	} else {
@@ -109,7 +127,48 @@ func promote(event cloudevents.Event, logger *keptnutils.Logger) error {
 				return err
 			}
 			logger.Info(output)
+			return keptn.SendCloudEvent(getCloudEvent(PromoteEventData{
+				Project: data.Project,
+				Service: data.Service,
+				Stage:   data.Stage,
+				Action:  "aborte",
+			}, "sh.keptn.event.release.finished", keptn.KeptnContext, event.ID()))
 		}
 	}
 	return nil
+}
+
+// ConfigurationChangeEventData represents the data for changing the service configuration
+type PromoteEventData struct {
+	// Project is the name of the project
+	Project string `json:"project"`
+	// Service is the name of the new service
+	Service string `json:"service"`
+	// Stage is the name of the stage
+	Stage string `json:"stage"`
+
+	Action string `json:action`
+}
+
+func getCloudEvent(data interface{}, ceType string, shkeptncontext string, triggeredID string) cloudevents.Event {
+
+	source, _ := url.Parse("argo-service")
+	contentType := "application/json"
+
+	extensions := map[string]interface{}{"shkeptncontext": shkeptncontext}
+	if triggeredID != "" {
+		extensions["triggeredid"] = triggeredID
+	}
+
+	return cloudevents.Event{
+		Context: cloudevents.EventContextV02{
+			ID:          uuid.New().String(),
+			Time:        &types.Timestamp{Time: time.Now()},
+			Type:        ceType,
+			Source:      types.URLRef{URL: *source},
+			ContentType: &contentType,
+			Extensions:  extensions,
+		}.AsV02(),
+		Data: data,
+	}
 }
