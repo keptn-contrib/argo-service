@@ -131,7 +131,7 @@ func promote(event cloudevents.Event, logger *keptnutils.Logger) error {
 				Project: data.Project,
 				Service: data.Service,
 				Stage:   data.Stage,
-				Action:  "aborte",
+				Action:  "abort",
 			}, "sh.keptn.event.release.finished", keptn.KeptnContext, event.ID()))
 		}
 	}
