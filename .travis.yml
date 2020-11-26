@@ -39,7 +39,7 @@ jobs:
       services: []
       language: go
       go:
-        - 1.12.x
+        - 1.14.x
       # skip install
       install: true
       script:
@@ -58,7 +58,7 @@ jobs:
       services: []
       language: go
       go:
-        - 1.12.x
+        - 1.14.x
       # cache some go files
       cache:
         directories:

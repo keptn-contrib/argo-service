@@ -2,7 +2,7 @@
 # Use the offical Golang image to create a build artifact.
 # This is based on Debian and sets the GOPATH to /go.
 # https://hub.docker.com/_/golang
-FROM golang:1.12 as builder
+FROM golang:1.14 as builder
 
 WORKDIR /go/src/github.com/keptn-contrib/argo-service
 
