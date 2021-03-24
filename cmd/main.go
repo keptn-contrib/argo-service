@@ -51,7 +51,7 @@ type DeploymentDetails struct {
 type TestTriggeredExtendedDetails struct {
 	// TestStrategy is the testing strategy and is defined in the shipyard
 	TestStrategy       string `json:"teststrategy" jsonschema:"enum=real-user,enum=functional,enum=performance,enum=healthcheck,enum=canarywait"`
-	CanaryWaitDuration string `json:"CanaryWaitDuration"`
+	CanaryWaitDuration string `json:"canarywaitduration"`
 }
 
 type RollbackTriggeredExtendedEventData struct {
@@ -132,6 +132,8 @@ func gotEvent(ctx context.Context, event cloudevents.Event) error {
 		// only handle canarywait
 		if data.Test.TestStrategy == "canarywait" {
 			go testCanaryWait(myKeptn, event, data, logger)
+		} else {
+			logger.Info(fmt.Sprintf("No doing anything as teststrategy is not canarywait"))
 		}
 
 	} else {
@@ -155,10 +157,26 @@ func testCanaryWait(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, dat
 		return err
 	}
 
+	// lets parse the canarywaitduration
 	waitDuration, err := time.ParseDuration(data.Test.CanaryWaitDuration)
+	if err != nil {
+		_, err = myKeptn.SendTaskFinishedEvent(&keptnv2.EventData{
+			Status:  keptnv2.StatusErrored,
+			Result:  keptnv2.ResultFailed,
+			Message: fmt.Sprintf("Didn't wait because CanaryWaitSeconds of %s is invalid! %s", data.Test.CanaryWaitDuration, err),
+		}, ServiceName)
+		if err != nil {
+			msg := fmt.Sprintf("Error sending test.finished event for service %s of project %s and stage %s: %s",
+				data.Service, data.Project, data.Stage, err.Error())
+			logger.Error(msg)
+			return err
+		}
+
+		return nil
+	}
+
 	// lets wait for the defined seconds
-	if err != nil &&
-		((waitDuration.Seconds() >= MINCANARYWAIT) && (waitDuration.Seconds() < MAXCANARYWAIT)) {
+	if (waitDuration.Seconds() >= MINCANARYWAIT) && (waitDuration.Seconds() < MAXCANARYWAIT) {
 		startedAt := time.Now()
 
 		// lets wait
@@ -192,7 +210,7 @@ func testCanaryWait(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, dat
 	_, err = myKeptn.SendTaskFinishedEvent(&keptnv2.EventData{
 		Status:  keptnv2.StatusErrored,
 		Result:  keptnv2.ResultFailed,
-		Message: fmt.Sprintf("Didn't wait because CanaryWaitSeconds of %s is invalid!", data.Test.CanaryWaitDuration),
+		Message: fmt.Sprintf("Didn't wait because CanaryWaitSeconds (%s:%f) not within MIN=%f & MAX=%f!", data.Test.CanaryWaitDuration, waitDuration.Seconds(), MINCANARYWAIT, MAXCANARYWAIT),
 	}, ServiceName)
 	if err != nil {
 		msg := fmt.Sprintf("Error sending test.finished event for service %s of project %s and stage %s: %s",
