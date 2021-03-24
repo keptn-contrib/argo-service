@@ -3,6 +3,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: keptn-argo-service
+  namespace: keptn  
   labels:
     "app": "keptn"
 ---
@@ -10,6 +11,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: keptn-argo-service-rollouts
+  namespace: keptn  
   labels:
     "app": "keptn"
 rules:
@@ -24,6 +26,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: keptn-argo-service-rollouts
+  namespace: keptn  
   labels:
     "app": "keptn"
 roleRef:
@@ -38,6 +41,12 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: argo-service
+  namespace: keptn  
+  labels:
+    app.kubernetes.io/name: argo-service
+    app.kubernetes.io/instance: keptn
+    app.kubernetes.io/part-of: keptn-keptn
+    app.kubernetes.io/component: execution-plane   
 spec:
   selector:
     matchLabels:
@@ -84,8 +93,13 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argo-service
+  namespace: keptn  
   labels:
     run: argo-service
+    app.kubernetes.io/name: argo-service
+    app.kubernetes.io/instance: keptn
+    app.kubernetes.io/part-of: keptn-keptn
+    app.kubernetes.io/component: execution-plane    
 spec:
   ports:
     - port: 8080

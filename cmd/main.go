@@ -4,11 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/keptn-contrib/argo-service/pkg/lib/argo"
 
@@ -21,10 +18,46 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
+const ServiceName = "argo-service"
+const MINCANARYWAIT = 0.0
+const MAXCANARYWAIT = 3600.0 // max wait is an hour!
+
 type envConfig struct {
 	// Port on which to listen for cloudevents
 	Port int    `envconfig:"RCV_PORT" default:"8080"`
 	Path string `envconfig:"RCV_PATH" default:"/"`
+}
+
+/**
+ * This is an extended version of the Release TriggeredEventData including a new section for
+ */
+
+type TestTriggeredExtendedEventData struct {
+	keptnv2.EventData
+
+	Test       TestTriggeredExtendedDetails `json:"test"`
+	Deployment DeploymentDetails            `json:"deployment"`
+}
+
+type DeploymentDetails struct {
+	// DeploymentURILocal contains the local URL
+	DeploymentURIsLocal []string `json:"deploymentURIsLocal"`
+	// DeploymentURIPublic contains the public URL
+	DeploymentURIsPublic []string `json:"deploymentURIsPublic,omitempty"`
+	// DeploymentStrategy defines the used deployment strategy
+	DeploymentStrategy string `json:"deploymentstrategy" jsonschema:"enum=direct,enum=blue_green_service,enum=user_managed"`
+}
+
+type TestTriggeredExtendedDetails struct {
+	// TestStrategy is the testing strategy and is defined in the shipyard
+	TestStrategy       string `json:"teststrategy" jsonschema:"enum=real-user,enum=functional,enum=performance,enum=healthcheck,enum=canarywait"`
+	CanaryWaitDuration string `json:"CanaryWaitDuration"`
+}
+
+type RollbackTriggeredExtendedEventData struct {
+	keptnv2.EventData
+
+	Deployment DeploymentDetails `json:"deployment"`
 }
 
 func main() {
@@ -53,14 +86,54 @@ func _main(args []string, env envConfig) int {
 	return 0
 }
 
+/**
+ * Handles incoming events
+ */
 func gotEvent(ctx context.Context, event cloudevents.Event) error {
 	var shkeptncontext string
 	event.Context.ExtensionAs("shkeptncontext", &shkeptncontext)
 
-	logger := keptnutils.NewLogger(shkeptncontext, event.Context.GetID(), "gatekeeper-service")
+	logger := keptnutils.NewLogger(shkeptncontext, event.Context.GetID(), ServiceName)
+	myKeptn, err := keptnv2.NewKeptn(&event, keptnutils.KeptnOpts{})
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to create keptn handler: %v", err))
+		return err
+	}
 
+	logger.Info(fmt.Sprintf("gotEvent(%s): %s - %s", event.Type(), myKeptn.KeptnContext, event.Context.GetID()))
+
+	// Now lets see which event we want to handle
+	// Release: We promote for successful evaluations or abort for failed evaluations
+	// Rollback: We will send an abort
 	if event.Type() == keptnv2.GetTriggeredEventType(keptnv2.ReleaseTaskName) {
-		go promote(event, logger)
+		data := &keptnv2.ReleaseTriggeredEventData{}
+		if err := event.DataAs(data); err != nil {
+			logger.Error(fmt.Sprintf("Got GetTriggeredEventType Error: %s", err.Error()))
+			return err
+		}
+
+		go promote(myKeptn, event, data, logger)
+	} else if event.Type() == keptnv2.GetTriggeredEventType(keptnv2.RollbackTaskName) {
+
+		data := &RollbackTriggeredExtendedEventData{}
+		if err := event.DataAs(data); err != nil {
+			logger.Error(fmt.Sprintf("Got RollbackTriggeredExtendedEventData Error: %s", err.Error()))
+			return err
+		}
+
+		go abort(myKeptn, event, data, logger)
+	} else if event.Type() == keptnv2.GetTriggeredEventType(keptnv2.TestTaskName) {
+		data := &TestTriggeredExtendedEventData{}
+		if err := event.DataAs(data); err != nil {
+			logger.Error(fmt.Sprintf("Got TestTriggeredExtendedEventData Error: %s", err.Error()))
+			return err
+		}
+
+		// only handle canarywait
+		if data.Test.TestStrategy == "canarywait" {
+			go testCanaryWait(myKeptn, event, data, logger)
+		}
+
 	} else {
 		logger.Error("Received unexpected keptn event")
 	}
@@ -68,35 +141,100 @@ func gotEvent(ctx context.Context, event cloudevents.Event) error {
 	return nil
 }
 
-func promote(event cloudevents.Event, logger *keptnutils.Logger) error {
+/**
+ * Waits for the canaryWaitSeconds
+ */
+func testCanaryWait(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *TestTriggeredExtendedEventData, logger *keptnutils.Logger) error {
 
-	data := &keptnv2.ReleaseTriggeredEventData{}
-	if err := event.DataAs(data); err != nil {
-		logger.Error(fmt.Sprintf("Got Data Error: %s", err.Error()))
-		return err
-	}
-
-	keptn, err := keptnv2.NewKeptn(&event, keptnutils.KeptnOpts{})
+	// lets send test.started
+	_, err := myKeptn.SendTaskStartedEvent(data, ServiceName)
 	if err != nil {
-		logger.Info("failed to create keptn handler")
+		msg := fmt.Sprintf("Error sending test.started event for canary_wait on service %s of project %s and stage %s: %s",
+			data.Service, data.Project, data.Stage, err.Error())
+		logger.Error(msg)
 		return err
 	}
 
-	if err := sendReleaseStartedEvent(event, keptn, data); err != nil {
-		msg := fmt.Sprintf("Error sending release.started event "+
-			"for service %s of project %s and stage %s: %s", data.Service, data.Project,
-			data.Stage, err.Error())
-		logger.Error(msg)
-		return sendReleaseFailedFinishedEvent(event, keptn, data, msg)
+	waitDuration, err := time.ParseDuration(data.Test.CanaryWaitDuration)
+	// lets wait for the defined seconds
+	if err != nil &&
+		((waitDuration.Seconds() >= MINCANARYWAIT) && (waitDuration.Seconds() < MAXCANARYWAIT)) {
+		startedAt := time.Now()
+
+		// lets wait
+		<-time.After(waitDuration)
+
+		// lets send the test finished event
+		testFinishedEventData := &keptnv2.TestFinishedEventData{
+			EventData: keptnv2.EventData{
+				Status:  keptnv2.StatusSucceeded,
+				Result:  keptnv2.ResultPass,
+				Message: fmt.Sprintf("Successfully waited for %s seconds!", data.Test.CanaryWaitDuration),
+			},
+			Test: keptnv2.TestFinishedDetails{
+				Start: startedAt.Format(time.RFC3339),
+				End:   time.Now().Format(time.RFC3339),
+			},
+		}
+
+		_, err := myKeptn.SendTaskFinishedEvent(testFinishedEventData, ServiceName)
+		if err != nil {
+			msg := fmt.Sprintf("Error sending test.finished event for service %s of project %s and stage %s: %s",
+				data.Service, data.Project, data.Stage, err.Error())
+			logger.Error(msg)
+			return err
+		}
+
+		return nil
 	}
 
+	// in this case we got an incorrect wait time and send a failure event
+	_, err = myKeptn.SendTaskFinishedEvent(&keptnv2.EventData{
+		Status:  keptnv2.StatusErrored,
+		Result:  keptnv2.ResultFailed,
+		Message: fmt.Sprintf("Didn't wait because CanaryWaitSeconds of %s is invalid!", data.Test.CanaryWaitDuration),
+	}, ServiceName)
+	if err != nil {
+		msg := fmt.Sprintf("Error sending test.finished event for service %s of project %s and stage %s: %s",
+			data.Service, data.Project, data.Stage, err.Error())
+		logger.Error(msg)
+		return err
+	}
+
+	return nil
+}
+
+func promote(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *keptnv2.ReleaseTriggeredEventData, logger *keptnutils.Logger) error {
+
+	/**
+	 * Only acting if we have an Argo Rollout
+	 * -
+	 */
+
+	// TODO - only send start event if we really do something??
+	_, err := myKeptn.SendTaskStartedEvent(data, ServiceName)
+	if err != nil {
+		msg := fmt.Sprintf("Error sending release.started event on service %s of project %s and stage %s: %s",
+			data.Service, data.Project, data.Stage, err.Error())
+		logger.Error(msg)
+		return err
+	}
+
+	// lets see whether we support the passed deployment strategy
 	deploymentStrategy, err := keptnevents.GetDeploymentStrategy(data.Deployment.DeploymentStrategy)
 	if err != nil {
 		msg := fmt.Sprintf("Error determining deployment strategy "+
 			"for service %s of project %s and stage %s: %s", data.Service, data.Project,
 			data.Stage, err.Error())
 		logger.Error(msg)
-		return sendReleaseFailedFinishedEvent(event, keptn, data, msg)
+
+		return sendReleaseFailedFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
+	}
+
+	// we only support Duplicate (Blue/Green) and UserManaged (for Canary)
+	if (deploymentStrategy != keptnevents.Duplicate) && (deploymentStrategy != keptnevents.UserManaged) {
+		msg := "Argo-service took no action as it only supports actions on deploymentStrategy duplicate (blue/green) or user_managed (canary)"
+		return sendReleaseSucceededFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
 	}
 
 	// Evaluation has passed if we have result = pass or result = warning
@@ -105,109 +243,110 @@ func promote(event cloudevents.Event, logger *keptnutils.Logger) error {
 		logger.Info(fmt.Sprintf("Service %s of project %s in stage %s has passed the evaluation",
 			data.Service, data.Project, data.Stage))
 
-		if deploymentStrategy == keptnevents.Duplicate {
-			// Promote rollout
-			output, err := argo.Promote(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
-			if err != nil {
-				msg := fmt.Sprintf("Error sending promotion event "+
-					"for service %s of project %s and stage %s: %s", data.Service, data.Project,
-					data.Stage, err.Error())
-				logger.Error(msg)
-				return sendReleaseFailedFinishedEvent(event, keptn, data, msg)
-			}
-			logger.Info(output)
-
-			return sendReleaseSucceededFinishedEvent(event, keptn, data)
+		// Promote rollout
+		output, err := argo.Promote(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
+		if err != nil {
+			msg := fmt.Sprintf("Error sending promotion event "+
+				"for service %s of project %s and stage %s: %s", data.Service, data.Project,
+				data.Stage, err.Error())
+			return sendReleaseFailedFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
 		}
-	} else {
-		logger.Info(fmt.Sprintf("Service %s of project %s in stage %s has NOT passed the evaluation",
-			data.Service, data.Project, data.Stage))
+		logger.Info(output)
 
-		if deploymentStrategy == keptnevents.Duplicate {
-			// Abort rollout
-			output, err := argo.Abort(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
-			if err != nil {
-				msg := fmt.Sprintf("Error sending promotion event "+
-					"for service %s of project %s and stage %s: %s", data.Service, data.Project,
-					data.Stage, err.Error())
-				logger.Error(msg)
-				return sendReleaseFailedFinishedEvent(event, keptn, data, msg)
-			}
-			logger.Info(output)
-			return sendReleaseSucceededFinishedEvent(event, keptn, data)
-		}
+		msg := fmt.Sprintf("Successfully sent promotion event "+
+			"for service %s of project %s and stage %s: %s", data.Service, data.Project, data.Stage, output)
+
+		return sendReleaseSucceededFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
 	}
-	return nil
+
+	// if not passed
+	logger.Info(fmt.Sprintf("Service %s of project %s in stage %s has NOT passed the evaluation",
+		data.Service, data.Project, data.Stage))
+
+	// Abort rollout
+	output, err := argo.Abort(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
+	if err != nil {
+		msg := fmt.Sprintf("Error sending abort event "+
+			"for service %s of project %s and stage %s: %s", data.Service, data.Project,
+			data.Stage, err.Error())
+		logger.Error(msg)
+		return sendReleaseFailedFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
+	}
+	logger.Info(output)
+	msg := fmt.Sprintf("Successfully sent abort event "+
+		"for service %s of project %s and stage %s: %s", data.Service, data.Project, data.Stage, output)
+	return sendReleaseSucceededFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
 }
 
-func sendReleaseSucceededFinishedEvent(event cloudevents.Event, keptn *keptnv2.Keptn, data *keptnv2.ReleaseTriggeredEventData) error {
-	return keptn.SendCloudEvent(getCloudEvent(keptnv2.ReleaseFinishedEventData{
-		EventData: keptnv2.EventData{
-			Project: data.Project,
-			Stage:   data.Stage,
-			Service: data.Service,
-			Labels:  data.Labels,
-			Status:  keptnv2.StatusSucceeded,
-			Result:  keptnv2.ResultPass,
-		},
-		Release: keptnv2.ReleaseData{},
-	}, keptnv2.GetFinishedEventType(keptnv2.ReleaseTaskName), keptn.KeptnContext, event.ID()))
-}
+func abort(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *RollbackTriggeredExtendedEventData, logger *keptnutils.Logger) error {
 
-func sendReleaseFailedFinishedEvent(event cloudevents.Event, keptn *keptnv2.Keptn, data *keptnv2.ReleaseTriggeredEventData, msg string) error {
-	return keptn.SendCloudEvent(getCloudEvent(keptnv2.ReleaseFinishedEventData{
-		EventData: keptnv2.EventData{
-			Project: data.Project,
-			Stage:   data.Stage,
-			Service: data.Service,
-			Labels:  data.Labels,
+	/**
+	 * Only acting if we have an Argo Rollout
+	 * -
+	 */
+
+	deploymentStrategy, err := keptnevents.GetDeploymentStrategy(data.Deployment.DeploymentStrategy)
+
+	// we only support Duplicate (Blue/Green) and UserManaged (for Canary)
+	if (deploymentStrategy != keptnevents.Duplicate) && (deploymentStrategy != keptnevents.UserManaged) {
+		msg := "Argo-service took no rollback action as it only supports actions on deploymentStrategy duplicate (blue/green) or user_managed (canary)"
+		logger.Info(msg)
+		return nil
+	}
+
+	_, err = myKeptn.SendTaskStartedEvent(data, ServiceName)
+	if err != nil {
+		msg := fmt.Sprintf("Error sending rollback.started event on service %s of project %s and stage %s: %s",
+			data.Service, data.Project, data.Stage, err.Error())
+		logger.Error(msg)
+		return err
+	}
+
+	// Abort rollout
+	output, err := argo.Abort(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
+	if err != nil {
+		msg := fmt.Sprintf("Error sending abort event for service %s of project %s and stage %s: %s", data.Service, data.Project,
+			data.Stage, err.Error())
+		logger.Error(msg)
+		_, err = myKeptn.SendTaskFinishedEvent(&keptnv2.EventData{
 			Status:  keptnv2.StatusErrored,
 			Result:  keptnv2.ResultFailed,
 			Message: msg,
-		},
-		Release: keptnv2.ReleaseData{},
-	}, keptnv2.GetFinishedEventType(keptnv2.ReleaseTaskName), keptn.KeptnContext, event.ID()))
-}
-
-func sendReleaseStartedEvent(event cloudevents.Event, keptn *keptnv2.Keptn, data *keptnv2.ReleaseTriggeredEventData) error {
-	return keptn.SendCloudEvent(getCloudEvent(keptnv2.ReleaseFinishedEventData{
-		EventData: keptnv2.EventData{
-			Project: data.Project,
-			Stage:   data.Stage,
-			Service: data.Service,
-			Labels:  data.Labels,
-		},
-	}, keptnv2.GetStartedEventType(keptnv2.ReleaseTaskName), keptn.KeptnContext, event.ID()))
-}
-
-// ConfigurationChangeEventData represents the data for changing the service configuration
-type PromoteEventData struct {
-	// Project is the name of the project
-	Project string `json:"project"`
-	// Service is the name of the new service
-	Service string `json:"service"`
-	// Stage is the name of the stage
-	Stage string `json:"stage"`
-
-	Action string `json:action`
-}
-
-func getCloudEvent(data interface{}, ceType string, shkeptncontext string, triggeredID string) cloudevents.Event {
-
-	source, _ := url.Parse("argo-service")
-
-	extensions := map[string]interface{}{"shkeptncontext": shkeptncontext}
-	if triggeredID != "" {
-		extensions["triggeredid"] = triggeredID
+		}, ServiceName)
+		return err
 	}
 
-	event := cloudevents.NewEvent()
-	event.SetID(uuid.New().String())
-	event.SetTime(time.Now())
-	event.SetType(ceType)
-	event.SetSource(source.String())
-	event.SetDataContentType(cloudevents.ApplicationJSON)
-	event.SetData(cloudevents.ApplicationJSON, data)
+	logger.Info(output)
+	msg := fmt.Sprintf("Successfully sent abort event for service %s of project %s and stage %s: %s", data.Service, data.Project, data.Stage, output)
+	_, err = myKeptn.SendTaskFinishedEvent(&keptnv2.EventData{
+		Status:  keptnv2.StatusSucceeded,
+		Result:  keptnv2.ResultPass,
+		Message: msg,
+	}, ServiceName)
 
-	return event
+	return err
+}
+
+func sendReleaseSucceededFinishedEvent(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *keptnv2.ReleaseTriggeredEventData, logger *keptnutils.Logger, msg string) error {
+
+	logger.Info(msg)
+	_, err := myKeptn.SendTaskFinishedEvent(&keptnv2.EventData{
+		Status:  keptnv2.StatusSucceeded,
+		Result:  keptnv2.ResultPass,
+		Message: msg,
+	}, ServiceName)
+
+	return err
+}
+
+func sendReleaseFailedFinishedEvent(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *keptnv2.ReleaseTriggeredEventData, logger *keptnutils.Logger, msg string) error {
+
+	logger.Error(msg)
+	_, err := myKeptn.SendTaskFinishedEvent(&keptnv2.EventData{
+		Status:  keptnv2.StatusErrored,
+		Result:  keptnv2.ResultFailed,
+		Message: msg,
+	}, ServiceName)
+
+	return err
 }
