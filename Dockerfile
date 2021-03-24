@@ -44,7 +44,7 @@ RUN wget https://storage.googleapis.com/kubernetes-release/release/$KUBEECTL_VER
     chmod +x ./kubectl && \
     mv ./kubectl /bin/kubectl
 
-RUN wget https://github.com/argoproj/argo-rollouts/releases/download/v0.6.0/kubectl-argo-rollouts-linux-amd64 && \
+RUN wget https://github.com/argoproj/argo-rollouts/releases/download/v0.10.2/kubectl-argo-rollouts-linux-amd64 && \
     chmod +x ./kubectl-argo-rollouts-linux-amd64 && \
     mv ./kubectl-argo-rollouts-linux-amd64 /bin/kubectl-argo-rollouts
 
