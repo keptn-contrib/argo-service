@@ -19,6 +19,7 @@ import (
 )
 
 const ServiceName = "argo-service"
+const RealUserTestStrategy = "real-user"
 const MINCANARYWAIT = 0.0
 const MAXCANARYWAIT = 3600.0 // max wait is an hour!
 
@@ -130,10 +131,10 @@ func gotEvent(ctx context.Context, event cloudevents.Event) error {
 		}
 
 		// only handle canarywait
-		if data.Test.TestStrategy == "canarywait" {
+		if data.Test.TestStrategy == RealUserTestStrategy {
 			go testCanaryWait(myKeptn, event, data, logger)
 		} else {
-			logger.Info(fmt.Sprintf("No doing anything as teststrategy is not canarywait"))
+			logger.Info(fmt.Sprintf("No doing anything as teststrategy is %s. We just wait on %s", data.Test.TestStrategy, RealUserTestStrategy))
 		}
 
 	} else {
@@ -151,8 +152,8 @@ func testCanaryWait(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, dat
 	// lets send test.started
 	_, err := myKeptn.SendTaskStartedEvent(data, ServiceName)
 	if err != nil {
-		msg := fmt.Sprintf("Error sending test.started event for canary_wait on service %s of project %s and stage %s: %s",
-			data.Service, data.Project, data.Stage, err.Error())
+		msg := fmt.Sprintf("Error sending test.started event for %s on service %s of project %s and stage %s: %s",
+			RealUserTestStrategy, data.Service, data.Project, data.Stage, err.Error())
 		logger.Error(msg)
 		return err
 	}
@@ -224,12 +225,6 @@ func testCanaryWait(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, dat
 
 func promote(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *keptnv2.ReleaseTriggeredEventData, logger *keptnutils.Logger) error {
 
-	/**
-	 * Only acting if we have an Argo Rollout
-	 * -
-	 */
-
-	// TODO - only send start event if we really do something??
 	_, err := myKeptn.SendTaskStartedEvent(data, ServiceName)
 	if err != nil {
 		msg := fmt.Sprintf("Error sending release.started event on service %s of project %s and stage %s: %s",
@@ -239,14 +234,18 @@ func promote(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *kept
 	}
 
 	// lets see whether we support the passed deployment strategy
-	deploymentStrategy, err := keptnevents.GetDeploymentStrategy(data.Deployment.DeploymentStrategy)
-	if err != nil {
-		msg := fmt.Sprintf("Error determining deployment strategy "+
-			"for service %s of project %s and stage %s: %s", data.Service, data.Project,
-			data.Stage, err.Error())
-		logger.Error(msg)
+	// we either allow empty
+	deploymentStrategy := keptnevents.UserManaged
+	if data.Deployment.DeploymentStrategy != "" {
+		deploymentStrategy, err = keptnevents.GetDeploymentStrategy(data.Deployment.DeploymentStrategy)
+		if err != nil {
+			msg := fmt.Sprintf("Error determining deployment strategy from %s "+
+				"for service %s of project %s and stage %s: %s", data.Deployment.DeploymentStrategy, data.Service, data.Project,
+				data.Stage, err.Error())
+			logger.Error(msg)
 
-		return sendReleaseFailedFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
+			return sendReleaseFailedFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
+		}
 	}
 
 	// we only support Duplicate (Blue/Green) and UserManaged (for Canary)
@@ -255,48 +254,49 @@ func promote(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *kept
 		return sendReleaseSucceededFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
 	}
 
-	// Evaluation has passed if we have result = pass or result = warning
-	if data.Result == keptnv2.ResultPass || data.Result == keptnv2.ResultWarning {
-
-		logger.Info(fmt.Sprintf("Service %s of project %s in stage %s has passed the evaluation",
-			data.Service, data.Project, data.Stage))
-
-		// Promote rollout
-		output, err := argo.Promote(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
-		if err != nil {
-			msg := fmt.Sprintf("Error sending rollout promotion event "+
-				"for service %s of project %s and stage %s: %s", data.Service, data.Project,
-				data.Stage, err.Error())
-			return sendReleaseFailedFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
-		}
-		logger.Info(output)
-		output = formatMessageForBridgeOutput(output)
-
-		msg := fmt.Sprintf("Successfully sent promotion event "+
-			"for service %s of project %s and stage %s: %s", data.Service, data.Project, data.Stage, output)
-
-		return sendReleaseSucceededFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
-	}
-
-	// if not passed
-	logger.Info(fmt.Sprintf("Service %s of project %s in stage %s has NOT passed the evaluation. Therefore we are ABORTING the promotion!!",
+	logger.Info(fmt.Sprintf("Service %s of project %s in stage %s has passed the evaluation",
 		data.Service, data.Project, data.Stage))
 
-	// Abort rollout
-	output, err := argo.Abort(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
+	// Promote rollout
+	output, err := argo.Promote(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
 	if err != nil {
-		msg := fmt.Sprintf("Error sending abort event "+
-			"for service %s of project %s and stage %s because evaluation was NOT PASSED: %s", data.Service, data.Project,
+		msg := fmt.Sprintf("Error sending rollout promotion event "+
+			"for service %s of project %s and stage %s: %s", data.Service, data.Project,
 			data.Stage, err.Error())
-		logger.Error(msg)
 		return sendReleaseFailedFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
 	}
 	logger.Info(output)
 	output = formatMessageForBridgeOutput(output)
 
-	msg := fmt.Sprintf("Successfully sent abort event "+
-		"for service %s of project %s and stage %s because evaluation was NOT PASSED: %s", data.Service, data.Project, data.Stage, output)
+	msg := fmt.Sprintf("Successfully sent promotion event "+
+		"for service %s of project %s and stage %s: %s", data.Service, data.Project, data.Stage, output)
+
 	return sendReleaseSucceededFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
+
+	/*	// Evaluation has passed if we have result = pass or result = warning
+		if data.Result == keptnv2.ResultPass || data.Result == keptnv2.ResultWarning {
+
+		}
+
+		// if not passed
+		logger.Info(fmt.Sprintf("Service %s of project %s in stage %s has NOT passed the evaluation. Therefore we are ABORTING the promotion!!",
+			data.Service, data.Project, data.Stage))
+
+		// Abort rollout
+		output, err := argo.Abort(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
+		if err != nil {
+			msg := fmt.Sprintf("Error sending abort event "+
+				"for service %s of project %s and stage %s because evaluation was NOT PASSED: %s", data.Service, data.Project,
+				data.Stage, err.Error())
+			logger.Error(msg)
+			return sendReleaseFailedFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
+		}
+		logger.Info(output)
+		output = formatMessageForBridgeOutput(output)
+
+		msg := fmt.Sprintf("Successfully sent abort event "+
+			"for service %s of project %s and stage %s because evaluation was NOT PASSED: %s", data.Service, data.Project, data.Stage, output)
+		return sendReleaseSucceededFinishedEvent(myKeptn, incomingEvent, data, logger, msg)*/
 }
 
 func abort(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *RollbackTriggeredExtendedEventData, logger *keptnutils.Logger) error {
