@@ -264,7 +264,7 @@ func promote(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *kept
 		// Promote rollout
 		output, err := argo.Promote(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
 		if err != nil {
-			msg := fmt.Sprintf("Error sending promotion event "+
+			msg := fmt.Sprintf("Error sending rollout promotion event "+
 				"for service %s of project %s and stage %s: %s", data.Service, data.Project,
 				data.Stage, err.Error())
 			return sendReleaseFailedFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
@@ -278,21 +278,21 @@ func promote(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *kept
 	}
 
 	// if not passed
-	logger.Info(fmt.Sprintf("Service %s of project %s in stage %s has NOT passed the evaluation",
+	logger.Info(fmt.Sprintf("Service %s of project %s in stage %s has NOT passed the evaluation. Therefore we are ABORTING the promotion!!",
 		data.Service, data.Project, data.Stage))
 
 	// Abort rollout
 	output, err := argo.Abort(data.Service+"-"+data.Stage, data.Project+"-"+data.Stage)
 	if err != nil {
 		msg := fmt.Sprintf("Error sending abort event "+
-			"for service %s of project %s and stage %s: %s", data.Service, data.Project,
+			"for service %s of project %s and stage %s because evaluation was NOT PASSED: %s", data.Service, data.Project,
 			data.Stage, err.Error())
 		logger.Error(msg)
 		return sendReleaseFailedFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
 	}
 	logger.Info(output)
 	msg := fmt.Sprintf("Successfully sent abort event "+
-		"for service %s of project %s and stage %s: %s", data.Service, data.Project, data.Stage, output)
+		"for service %s of project %s and stage %s because evaluation was NOT PASSED: %s", data.Service, data.Project, data.Stage, output)
 	return sendReleaseSucceededFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
 }
 
