@@ -270,6 +270,7 @@ func promote(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *kept
 			return sendReleaseFailedFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
 		}
 		logger.Info(output)
+		output = formatMessageForBridgeOutput(output)
 
 		msg := fmt.Sprintf("Successfully sent promotion event "+
 			"for service %s of project %s and stage %s: %s", data.Service, data.Project, data.Stage, output)
@@ -291,6 +292,8 @@ func promote(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *kept
 		return sendReleaseFailedFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
 	}
 	logger.Info(output)
+	output = formatMessageForBridgeOutput(output)
+
 	msg := fmt.Sprintf("Successfully sent abort event "+
 		"for service %s of project %s and stage %s because evaluation was NOT PASSED: %s", data.Service, data.Project, data.Stage, output)
 	return sendReleaseSucceededFinishedEvent(myKeptn, incomingEvent, data, logger, msg)
@@ -335,6 +338,8 @@ func abort(myKeptn *keptnv2.Keptn, incomingEvent cloudevents.Event, data *Rollba
 	}
 
 	logger.Info(output)
+	output = formatMessageForBridgeOutput(output)
+
 	msg := fmt.Sprintf("Successfully sent abort event for service %s of project %s and stage %s: %s", data.Service, data.Project, data.Stage, output)
 	_, err = myKeptn.SendTaskFinishedEvent(&keptnv2.EventData{
 		Status:  keptnv2.StatusSucceeded,
@@ -367,4 +372,10 @@ func sendReleaseFailedFinishedEvent(myKeptn *keptnv2.Keptn, incomingEvent cloude
 	}, ServiceName)
 
 	return err
+}
+
+func formatMessageForBridgeOutput(msg string) string {
+	// for now we just replace linefeeds with <br>
+	// return strings.ReplaceAll(msg, "\n", "<br>")
+	return msg
 }
