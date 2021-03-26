@@ -3,6 +3,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: keptn-argo-service
+  namespace: keptn  
   labels:
     "app": "keptn"
 ---
@@ -29,15 +30,23 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: keptn-argo-service-rollouts
+  name: cluster-admin
+#  name: keptn-argo-service-rollouts
 subjects:
   - kind: ServiceAccount
     name: keptn-argo-service
+    namespace: keptn
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: argo-service
+  namespace: keptn  
+  labels:
+    app.kubernetes.io/name: argo-service
+    app.kubernetes.io/instance: keptn
+    app.kubernetes.io/part-of: keptn-keptn
+    app.kubernetes.io/component: execution-plane   
 spec:
   selector:
     matchLabels:
@@ -51,7 +60,7 @@ spec:
       serviceAccountName: keptn-argo-service
       containers:
         - name: argo-service
-          image: keptncontrib/argo-service:latest # set to released version
+          image: grabnerandi/argo-service:0.8.0 # set to released version
           ports:
             - containerPort: 8080
           resources:
@@ -76,7 +85,7 @@ spec:
             - name: PUBSUB_URL
               value: 'nats://keptn-nats-cluster'
             - name: PUBSUB_TOPIC
-              value: 'sh.keptn.event.release.triggered'
+              value: 'sh.keptn.event.release.triggered,sh.keptn.event.rollback.triggered,sh.keptn.event.test.triggered'
             - name: PUBSUB_RECIPIENT
               value: '127.0.0.1'
 ---
@@ -84,8 +93,13 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argo-service
+  namespace: keptn  
   labels:
     run: argo-service
+    app.kubernetes.io/name: argo-service
+    app.kubernetes.io/instance: keptn
+    app.kubernetes.io/part-of: keptn-keptn
+    app.kubernetes.io/component: execution-plane    
 spec:
   ports:
     - port: 8080
