@@ -21,7 +21,7 @@ func Promote(rolloutName string, namespace string) (string, error) {
 		[]string{"argo", "rollouts", "get", "rollout", rolloutName, "-n", namespace})
 
 	if err2 != nil {
-		output = fmt.Sprintf("%s\nCouldn't retrieve rollout overview! %s", err2.Error())
+		output = fmt.Sprintf("%s\nCouldn't retrieve rollout overview! %s", outputRollout, err2.Error())
 		return output, nil
 	}
 
@@ -44,7 +44,7 @@ func Abort(rolloutName string, namespace string) (string, error) {
 		[]string{"argo", "rollouts", "get", "rollout", rolloutName, "-n", namespace})
 
 	if err2 != nil {
-		output = fmt.Sprintf("%s\nCouldn't retrieve rollout overview! %s", err2.Error())
+		output = fmt.Sprintf("%s\nCouldn't retrieve rollout overview! %s", outputRollout, err2.Error())
 		return output, nil
 	}
 
