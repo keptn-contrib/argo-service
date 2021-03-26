@@ -60,7 +60,7 @@ spec:
       serviceAccountName: keptn-argo-service
       containers:
         - name: argo-service
-          image: grabnerandi/argo-service:0.8.0 # set to released version
+          image: keptncontrib/argo-service:0.8.0
           ports:
             - containerPort: 8080
           resources:
