@@ -6,8 +6,7 @@
 The Argo Service currently supports:
 * Canary and Blue/Green Deployments using [Argo Rollouts](https://argoproj.github.io/argo-rollouts/)
 
-Future versions of this service may support additional integrations with other capabilities of the Argo suite of projects!
-
+Future versions of this service may support additional integrations with other capabilities of the Argo suite of projects.
 
 ## Compatibility Matrix
 
@@ -15,11 +14,8 @@ Future versions of this service may support additional integrations with other c
 |:----------------:|:----------------------------------------:|
 |   0.6.2    | keptncontrib/argo-service:0.1.0 |
 |   0.7.0, 0.7.1    | keptncontrib/argo-service:0.1.1 |
-|   0.7.2    | keptncontrib/argo-service:0.1.2 |
-|   0.8.0 *)   | keptncontrib/argo-service:latest |
-
-*) Not released yet.
-
+|   0.7.2, 0.7.3    | keptncontrib/argo-service:0.1.2 |
+|   0.8.0 - 0.8.2   | keptncontrib/argo-service:0.8.0 |
 
 ## Argo Rollout Support Explained
 
@@ -200,7 +196,6 @@ This would allow the Keptn user to do the initial deployment and then moving to 
 keptn trigger delivery --project=myproject --service=myservice --stage=prod --image=myimage:1.0.0
 keptn trigger delivery --project=myproject --service=myservice --stage=prod --image=myimage:2.0.0
 ```
-
 
 ## Deploy the Keptn-Argo service in your Kubernetes cluster
 
