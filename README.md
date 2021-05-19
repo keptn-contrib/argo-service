@@ -186,7 +186,7 @@ Looking at the above shipyard - here is what happens
 
 ## Open Items for implementation
 
-Shall the arog-service also implement the deployment task that is currently handled by e.g: Helm Service?
+Shall the argo-service also implement the deployment task that is currently handled by e.g: Helm Service?
 This would allow the argo-service to do the
 1: Initial `helm apply` for the first version and extract the deploymentURI e.g: from a well defined values.yaml property
 2: Change the version and trigger a new rollout by calling `kubectl argo rollouts set image rollouts-demo rollouts-demo=argoproj/rollouts-demo:yellow` 
