@@ -17,6 +17,7 @@ Future versions of this service may support additional integrations with other c
 |   0.7.2, 0.7.3    | keptncontrib/argo-service:0.1.2 |
 |   0.8.0 - 0.8.2   | keptncontrib/argo-service:0.8.0 |
 
+
 ## Argo Rollout Support Explained
 
 For a working example check out the tutorial [Keptn on k3s](https://github.com/keptn-sandbox/keptn-on-k3s/tree/release-0.8.0)
