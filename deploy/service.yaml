@@ -57,6 +57,8 @@ spec:
     metadata:
       labels:
         run: argo-service
+        app.kubernetes.io/name: argo-service
+        app.kubernetes.io/version: 0.8.4
     spec:
       serviceAccountName: keptn-argo-service
       containers:
