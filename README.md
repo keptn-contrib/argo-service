@@ -15,7 +15,8 @@ Future versions of this service may support additional integrations with other c
 |   0.6.2    | keptncontrib/argo-service:0.1.0 |
 |   0.7.0, 0.7.1    | keptncontrib/argo-service:0.1.1 |
 |   0.7.2, 0.7.3    | keptncontrib/argo-service:0.1.2 |
-|   0.8.0 - 0.8.2   | keptncontrib/argo-service:0.8.0 |
+|   0.8.0 - 0.8.3   | keptncontrib/argo-service:0.8.0 |
+|   0.8.4   | keptncontrib/argo-service:0.8.4 |
 
 
 ## Argo Rollout Support Explained
