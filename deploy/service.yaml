@@ -91,6 +91,16 @@ spec:
               value: 'sh.keptn.event.release.triggered,sh.keptn.event.rollback.triggered,sh.keptn.event.test.triggered'
             - name: PUBSUB_RECIPIENT
               value: '127.0.0.1'
+            - name: PROJECT_FILTER
+              value: ""
+            - name: STAGE_FILTER
+              value: ""
+            - name: SERVICE_FILTER
+              value: ""
+            - name: KEPTN_API_ENDPOINT
+              value: ""
+            - name: KEPTN_API_TOKEN
+              value: ""
             - name: VERSION
               valueFrom:
                 fieldRef:
