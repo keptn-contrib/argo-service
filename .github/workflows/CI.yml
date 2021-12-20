@@ -1,0 +1,148 @@
+name: CI
+on:
+  # always execute docker build when something is pushed to master or release-* branches
+  push:
+    branches:
+      - 'master'
+      - 'release-*'
+  # in addition, execute for pull requests to those branches
+  pull_request:
+    branches:
+      - 'master'
+      - 'release-*'
+defaults:
+  run:
+    shell: bash
+jobs:
+  prepare_ci_run:
+    name: Prepare CI Run
+    # Prepare CI Run looks at what has been changed in this commit/PR/... and determines which artifacts should be
+    # built afterwards (in other jobs that depend on this one).
+    runs-on: ubuntu-20.04
+    outputs: # declare what this job outputs (so it can be re-used for other jobs)
+      # build config
+      # metadata
+      GIT_SHA: ${{ steps.extract_branch.outputs.GIT_SHA }}
+      BRANCH: ${{ steps.extract_branch.outputs.BRANCH }}
+      BRANCH_SLUG: ${{ steps.extract_branch.outputs.BRANCH_SLUG }}
+      VERSION: ${{ steps.get_version.outputs.VERSION }}
+      DATE: ${{ steps.get_datetime.outputs.DATE }}
+      TIME: ${{ steps.get_datetime.outputs.TIME }}
+      DATETIME: ${{ steps.get_datetime.outputs.DATETIME }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2.4.0
+        with:
+          fetch-depth: 0 # need to checkout "all commits" for certain features to work (e.g., get all changed files)
+
+      - name: Load CI Environment from .ci_env
+        id: load_ci_env
+        uses: c-py/action-dotenv-to-setenv@v3
+        with:
+          env-file: .ci_env
+
+      - name: Extract branch name
+        id: extract_branch
+        # see https://github.com/keptn/gh-action-extract-branch-name for details
+        uses: keptn/gh-action-extract-branch-name@main
+
+      - name: 'Get Previous tag'
+        id: get_previous_tag
+        uses: "WyriHaximus/github-action-get-previous-tag@v1.1"
+      - name: 'Get next patch version'
+        id: get_next_semver_tag
+        uses: "WyriHaximus/github-action-next-semvers@v1.1"
+        with:
+          version: ${{ steps.get_previous_tag.outputs.tag }}
+      - name: Get the version
+        id: get_version
+        env:
+          BRANCH: ${{ steps.extract_branch.outputs.BRANCH }}
+          BRANCH_SLUG: ${{ steps.extract_branch.outputs.BRANCH_SLUG }}
+        shell: bash
+        run: |
+          # determine version
+          GIT_LAST_TAG=${{ steps.get_previous_tag.outputs.tag }}
+          GIT_NEXT_TAG=${{ steps.get_next_semver_tag.outputs.patch }}
+          echo "GIT_LAST_TAG=${GIT_LAST_TAG}, GIT_NEXT_TAG=${GIT_NEXT_TAG}"
+
+          if [[ "$BRANCH" == "release-"* ]]; then
+            # Release Branch: extract version from branch name
+            VERSION=${BRANCH#"release-"}
+            else
+            if [[ "$BRANCH" == "master" ]]; then
+              # master branch = latest
+              VERSION="${GIT_NEXT_TAG}-dev"
+            else
+              # Feature/Development Branch - use last tag with branch slug
+              VERSION="${GIT_NEXT_TAG}-dev-${BRANCH_SLUG}"
+            fi
+          fi
+
+          echo "VERSION=${VERSION}"
+
+          echo "##[set-output name=VERSION;]$(echo ${VERSION})"
+      - name: Get current date and time
+        id: get_datetime
+        run: |
+          echo "::set-output name=DATE::$(date +'%Y%m%d')"
+          echo "::set-output name=TIME::$(date +'%H%M')"
+          echo "::set-output name=DATETIME::$(date +'%Y%m%d')$(date +'%H%M')"
+
+  ############################################################################
+  # Unit tests                                                               #
+  ############################################################################
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+      - name: Unit tests
+        uses: ./.github/actions/unit-tests
+
+  ############################################################################
+  # Build Docker Image                                                      #
+  ############################################################################
+  docker_build:
+    needs: [prepare_ci_run]
+    name: Docker Build
+    runs-on: ubuntu-20.04
+    env:
+      VERSION: ${{ needs.prepare_ci_run.outputs.VERSION }}
+      DATETIME: ${{ needs.prepare_ci_run.outputs.DATETIME }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2.4.0
+
+      - name: Load CI Environment from .ci_env
+        id: load_ci_env
+        uses: c-py/action-dotenv-to-setenv@v3
+        with:
+          env-file: .ci_env
+
+      - name: Docker Build
+        id: docker_build
+        uses: keptn/gh-automation/.github/actions/docker-build@v1.3.0
+        with:
+          TAGS: |
+            ${{ env.DOCKER_ORGANIZATION }}/${{ env.IMAGE }}:${{ env.VERSION }}
+            ${{ env.DOCKER_ORGANIZATION }}/${{ env.IMAGE }}:${{ env.VERSION }}.${{ env.DATETIME }}
+          BUILD_ARGS: |
+            version=${{ env.VERSION }}
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          PUSH: ${{(github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)}}
+
+      - id: report_docker_build_to_pr
+        name: Report Docker Build to PR
+        if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          recreate: true
+          header: test
+          message: |
+            The following Docker Images have been built:
+            ${{ fromJSON(steps.docker_build.outputs.BUILD_METADATA)['image.name'] }}
