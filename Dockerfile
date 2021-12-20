@@ -68,4 +68,4 @@ COPY --from=builder /go/src/github.com/keptn-contrib/argo-service/argo-service /
 ENV GOTRACEBACK=all
 
 # Run the web service on container startup.
-CMD ["/prometheus-service"]
+CMD ["/argo-service"]

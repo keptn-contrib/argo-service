@@ -26,8 +26,6 @@ jobs:
       BRANCH: ${{ steps.extract_branch.outputs.BRANCH }}
       BRANCH_SLUG: ${{ steps.extract_branch.outputs.BRANCH_SLUG }}
       VERSION: ${{ steps.get_version.outputs.VERSION }}
-      DATE: ${{ steps.get_datetime.outputs.DATE }}
-      TIME: ${{ steps.get_datetime.outputs.TIME }}
       DATETIME: ${{ steps.get_datetime.outputs.DATETIME }}
 
     steps:
@@ -83,11 +81,9 @@ jobs:
           echo "VERSION=${VERSION}"
 
           echo "##[set-output name=VERSION;]$(echo ${VERSION})"
-      - name: Get current date and time
+      - name: Get current datetime
         id: get_datetime
         run: |
-          echo "::set-output name=DATE::$(date +'%Y%m%d')"
-          echo "::set-output name=TIME::$(date +'%H%M')"
           echo "::set-output name=DATETIME::$(date +'%Y%m%d')$(date +'%H%M')"
 
   ############################################################################
