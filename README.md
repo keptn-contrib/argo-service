@@ -10,13 +10,14 @@ Future versions of this service may support additional integrations with other c
 
 ## Compatibility Matrix
 
-| Keptn Version    | [Argo-service Service Image](https://hub.docker.com/r/keptncontrib/argo-service/tags) |
-|:----------------:|:----------------------------------------:|
-|   0.6.2    | keptncontrib/argo-service:0.1.0 |
-|   0.7.0, 0.7.1    | keptncontrib/argo-service:0.1.1 |
-|   0.7.2, 0.7.3    | keptncontrib/argo-service:0.1.2 |
-|   0.8.0 - 0.8.3   | keptncontrib/argo-service:0.8.0 |
-|   0.8.4   | keptncontrib/argo-service:0.8.4 |
+| Keptn Version | [Argo-service Service Image](https://hub.docker.com/r/keptncontrib/argo-service/tags) |
+|:-------------:|:-------------------------------------------------------------------------------------:|
+|     0.6.2     |                            keptncontrib/argo-service:0.1.0                            |
+| 0.7.0, 0.7.1  |                            keptncontrib/argo-service:0.1.1                            |
+| 0.7.2, 0.7.3  |                            keptncontrib/argo-service:0.1.2                            |
+| 0.8.0 - 0.8.3 |                            keptncontrib/argo-service:0.8.0                            |
+|     0.8.4     |                            keptncontrib/argo-service:0.8.4                            |
+| 0.9.0 - 0.9.2 |                            keptncontrib/argo-service:0.9.0                            |
 
 
 ## Argo Rollout Support Explained
@@ -30,7 +31,8 @@ Assuming you have the following Keptn Project
 
 **Helm Chart with Argo Rollout**
 You should provide a Helm Chart that can be used with Keptn's Helm Service including Argo Rollout and Deployment definition like this:
-```
+
+```YAML
 kind: Rollout
 metadata:
   name: {{ .Values.keptn.service }}-{{ .Values.keptn.stage }}
@@ -68,7 +70,7 @@ And then iterate through the promotion steps like this
 * approve: approve the evaluation result
 
 Here is a sample shipyard file snippet:
-```json
+```YAML
 apiVersion: spec.keptn.sh/0.2.0
 kind: Shipyard
 metadata:
