@@ -203,16 +203,17 @@ keptn trigger delivery --project=myproject --service=myservice --stage=prod --im
 
 ## Deploy the Keptn-Argo service in your Kubernetes cluster
 
-To deploy the current version of the *argo-service* in your Keptn Kubernetes cluster, use the file `deploy/service.yaml` from this repository and apply it:
+To deploy the current version of the *argo-service* in your Keptn Kubernetes cluster, use the helm chart (either from a release
+or the one in the [chart](chart) directory):
 
 ```console
-kubectl apply -f deploy/service.yaml -n keptn
+helm upgrade --install -n keptn argo-service ./chart
 ```
 
 ## Delete the Keptn-Argo service in your Kubernetes cluster
 
-To delete a deployed *argo-service*, use the file `deploy/service.yaml` from this repository and delete the Kubernetes resources:
+To delete a deployed *argo-service*, uninstall the helm release specifying the same name and namespace used when installing:
 
 ```console
-kubectl delete -f deploy/service.yaml -n keptn
+helm uninstall -n keptn argo-service
 ```
