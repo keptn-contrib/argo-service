@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -74,7 +76,7 @@ func _main(args []string, env envConfig) int {
 	ctx := context.Background()
 	ctx = cloudevents.WithEncodingStructured(ctx)
 
-	p, err := cloudevents.NewHTTP(cloudevents.WithPath(env.Path), cloudevents.WithPort(env.Port))
+	p, err := cloudevents.NewHTTP(cloudevents.WithPath(env.Path), cloudevents.WithPort(env.Port), cloudevents.WithGetHandlerFunc(HTTPGetHandler))
 	if err != nil {
 		log.Fatalf("failed to create client, %v", err)
 	}
@@ -142,6 +144,54 @@ func gotEvent(ctx context.Context, event cloudevents.Event) error {
 	}
 
 	return nil
+}
+
+// HTTPGetHandler will handle all requests for '/health' and '/ready'
+func HTTPGetHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.URL.Path {
+	case "/health":
+		healthEndpointHandler(w, r)
+	case "/ready":
+		healthEndpointHandler(w, r)
+	default:
+		endpointNotFoundHandler(w, r)
+	}
+}
+
+// HealthHandler rerts a basic health check back
+func healthEndpointHandler(w http.ResponseWriter, r *http.Request) {
+	type StatusBody struct {
+		Status string `json:"status"`
+	}
+
+	status := StatusBody{Status: "OK"}
+
+	body, _ := json.Marshal(status)
+
+	w.Header().Set("content-type", "application/json")
+
+	_, err := w.Write(body)
+	if err != nil {
+		log.Println(err)
+	}
+}
+
+// endpointNotFoundHandler will return 404 for requests
+func endpointNotFoundHandler(w http.ResponseWriter, r *http.Request) {
+	type StatusBody struct {
+		Status string `json:"status"`
+	}
+
+	status := StatusBody{Status: "NOT FOUND"}
+
+	body, _ := json.Marshal(status)
+
+	w.Header().Set("content-type", "application/json")
+
+	_, err := w.Write(body)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 /**
