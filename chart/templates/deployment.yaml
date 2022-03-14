@@ -84,6 +84,8 @@ spec:
               value: "{{ .Values.distributor.projectFilter }}"
             - name: SERVICE_FILTER
               value: "{{ .Values.distributor.serviceFilter }}"
+            - name: DISTRIBUTOR_VERSION
+              value: {{ .Values.distributor.image.tag | default .Chart.AppVersion }}
             - name: VERSION
               valueFrom:
                 fieldRef:
@@ -116,6 +118,11 @@ spec:
             - name: HTTP_SSL_VERIFY
               {{- $apiValidateTls := .Values.remoteControlPlane.api.apiValidateTls | ternary "true" "false" }}
               value: "{{ $apiValidateTls }}"
+            {{- end }}
+            - name: PUBSUB_GROUP
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/name']
             {{- end }}
 
       {{- with .Values.nodeSelector }}
