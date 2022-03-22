@@ -123,7 +123,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.labels['app.kubernetes.io/name']
-            {{- end }}
 
       {{- with .Values.nodeSelector }}
       nodeSelector:
