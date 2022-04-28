@@ -20,6 +20,7 @@ Future versions of this service may support additional integrations with other c
 | 0.9.0 - 0.9.2 |                            keptncontrib/argo-service:0.9.0                            |
 |    0.10.x     |                            keptncontrib/argo-service:0.9.1                            |
 |    0.12.x     |                            keptncontrib/argo-service:0.9.2                            |
+|    0.13.x     |                            keptncontrib/argo-service:0.9.3                            |
 
 **Note**: This integration is currently incompatible with Keptn 0.14.x and newer.
 
