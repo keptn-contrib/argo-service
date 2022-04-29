@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.9.3](https://github.com/keptn-contrib/argo-service/compare/0.9.2...0.9.3) (2022-04-29)
+
+
+### Features
+
+* Upgrade to Keptn 0.13 ([#71](https://github.com/keptn-contrib/argo-service/issues/71)) ([01fce79](https://github.com/keptn-contrib/argo-service/commit/01fce791c6603c143808b293523fa4bfceef4c9e))
+
 ### [0.9.2](https://github.com/keptn-contrib/argo-service/compare/0.9.1...0.9.2) (2022-04-26)
 
 
