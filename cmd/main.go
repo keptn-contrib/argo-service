@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/cloudevents/sdk-go/v2/types"
 	"log"
 	"net/http"
 	"os"
@@ -93,8 +94,7 @@ func _main(args []string, env envConfig) int {
  * Handles incoming events
  */
 func gotEvent(ctx context.Context, event cloudevents.Event) error {
-	var shkeptncontext string
-	event.Context.ExtensionAs("shkeptncontext", &shkeptncontext)
+	shkeptncontext, err := types.ToString(event.Context.GetExtensions()["shkeptncontext"])
 
 	logger := keptnutils.NewLogger(shkeptncontext, event.Context.GetID(), ServiceName)
 	myKeptn, err := keptnv2.NewKeptn(&event, keptnutils.KeptnOpts{})
