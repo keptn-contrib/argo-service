@@ -3,13 +3,13 @@ on:
   # always execute docker build when something is pushed to master or release-* branches
   push:
     branches:
-      - 'master'
-      - 'release-*'
+      - "master"
+      - "release-*"
   # in addition, execute for pull requests to those branches
   pull_request:
     branches:
-      - 'master'
-      - 'release-*'
+      - "master"
+      - "release-*"
 defaults:
   run:
     shell: bash
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.0.2
       - name: Unit tests
         uses: ./.github/actions/unit-tests
 
