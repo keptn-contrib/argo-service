@@ -3,9 +3,10 @@ module github.com/keptn-contrib/argo-service
 go 1.17
 
 require (
-	github.com/cloudevents/sdk-go/v2 v2.9.0
+	github.com/cloudevents/sdk-go/v2 v2.10.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/keptn/go-utils v0.14.0
+	gopkg.in/yaml.v3 v3.0.1 // indirect; pin v3.0.0 >= because of CVE-2022-28948
 )
 
 require (
@@ -27,5 +28,4 @@ require (
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
