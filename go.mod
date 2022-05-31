@@ -6,7 +6,7 @@ require (
 	github.com/cloudevents/sdk-go/v2 v2.10.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/keptn/go-utils v0.14.0
-	gopkg.in/yaml.v3 v3.0.1 // indirect; pin v3.0.0 >= because of CVE-2022-28948
+	gopkg.in/yaml.v3 v3.0.1 // indirect; pin v3.0.1 >= because of CVE-2022-28948
 )
 
 require (
