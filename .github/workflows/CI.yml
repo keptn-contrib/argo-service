@@ -74,3 +74,35 @@ jobs:
           message: |
             The following Docker Images have been built:
             ${{ fromJSON(steps.docker_build.outputs.BUILD_METADATA)['image.name'] }}
+
+  helm_chart_build:
+    needs: [prepare_ci_run, docker_build]
+    name: Build Helm Charts
+    runs-on: ubuntu-20.04
+    env:
+      VERSION: ${{ needs.prepare_ci_run.outputs.VERSION }}
+      DATETIME: ${{ needs.prepare_ci_run.outputs.DATETIME }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3.0.2
+
+      - name: Load CI Environment from .ci_env
+        id: load_ci_env
+        uses: c-py/action-dotenv-to-setenv@v3
+        with:
+          env-file: .ci_env
+
+      - name: Build Helm Charts
+        id: build_helm_charts
+        uses: keptn/gh-automation/.github/actions/build-helm-charts@v1.6.0
+        with:
+          VERSION: ${{ env.VERSION }}
+          APP_VERSION: ${{ env.VERSION }}.${{ env.DATETIME }}
+          CHART_NAME: ${{ env.IMAGE }}
+
+      - name: Upload Helm Chart as an artifact
+        id: upload_helm_chart
+        uses: actions/upload-artifact@v3
+        with:
+          name: helm-charts
+          path: installer/*.tgz
