@@ -21,9 +21,6 @@ deploy:
         imageStrategy:
           helm: { }
         overrides:
-          distributor:
-            image:
-              tag: 0.13.4
           resources:
             limits:
               memory: 512Mi
