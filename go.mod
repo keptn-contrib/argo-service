@@ -1,6 +1,6 @@
 module github.com/keptn-contrib/argo-service
 
-go 1.17
+go 1.19
 
 require (
 	github.com/cloudevents/sdk-go/v2 v2.10.1
