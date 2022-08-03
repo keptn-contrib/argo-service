@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-const RealUserTestStrategy = "real-user"
-const MINCANARYWAIT = 0.0
-const MAXCANARYWAIT = 3600.0 // max wait is an hour!
+const minCanaryWait = 0.0
+const maxCanaryWait = 3600.0 // max wait is an hour!
 
+// TestTriggeredExtendedEventData is an extended version of TriggeredEventData including test details
 type TestTriggeredExtendedEventData struct {
 	keptnv2.EventData
 
@@ -19,6 +19,14 @@ type TestTriggeredExtendedEventData struct {
 	Deployment DeploymentDetails            `json:"deployment"`
 }
 
+// TestTriggeredExtendedDetails provides details about the test strategy and canary duration
+type TestTriggeredExtendedDetails struct {
+	// TestStrategy is the testing strategy and is defined in the shipyard
+	TestStrategy       string `json:"teststrategy" jsonschema:"enum=real-user,enum=functional,enum=performance,enum=healthcheck,enum=canarywait"`
+	CanaryWaitDuration string `json:"canarywaitduration"`
+}
+
+// DeploymentDetails contains information about the deployment URI and strategy
 type DeploymentDetails struct {
 	// DeploymentURILocal contains the local URL
 	DeploymentURIsLocal []string `json:"deploymentURIsLocal"`
@@ -28,21 +36,18 @@ type DeploymentDetails struct {
 	DeploymentStrategy string `json:"deploymentstrategy" jsonschema:"enum=direct,enum=blue_green_service,enum=user_managed"`
 }
 
-type TestTriggeredExtendedDetails struct {
-	// TestStrategy is the testing strategy and is defined in the shipyard
-	TestStrategy       string `json:"teststrategy" jsonschema:"enum=real-user,enum=functional,enum=performance,enum=healthcheck,enum=canarywait"`
-	CanaryWaitDuration string `json:"canarywaitduration"`
-}
-
+// RollbackTriggeredExtendedEventData is an extended version of TriggeredEventData including deployment details
 type RollbackTriggeredExtendedEventData struct {
 	keptnv2.EventData
 
 	Deployment DeploymentDetails `json:"deployment"`
 }
 
+// TriggeredEventHandler handles Keptn triggered events
 type TriggeredEventHandler struct {
 }
 
+// NewTriggeredEventHandler creates a new TriggeredEventHandler
 func NewTriggeredEventHandler() *TriggeredEventHandler {
 	return &TriggeredEventHandler{}
 }
@@ -162,7 +167,7 @@ func testCanaryWait(k sdk.IKeptn, data *TestTriggeredExtendedEventData) (interfa
 	}
 
 	// lets wait for the defined seconds
-	if (waitDuration.Seconds() >= MINCANARYWAIT) && (waitDuration.Seconds() < MAXCANARYWAIT) {
+	if (waitDuration.Seconds() >= minCanaryWait) && (waitDuration.Seconds() < maxCanaryWait) {
 		startedAt := time.Now()
 
 		// lets wait
@@ -172,7 +177,7 @@ func testCanaryWait(k sdk.IKeptn, data *TestTriggeredExtendedEventData) (interfa
 		return finishedEventData, nil
 	}
 
-	return nil, &sdk.Error{Err: err, StatusType: keptnv2.StatusErrored, ResultType: keptnv2.ResultFailed, Message: fmt.Sprintf("Didn't wait because CanaryWaitSeconds (%s:%f) not within MIN=%f & MAX=%f!", data.Test.CanaryWaitDuration, waitDuration.Seconds(), MINCANARYWAIT, MAXCANARYWAIT)}
+	return nil, &sdk.Error{Err: err, StatusType: keptnv2.StatusErrored, ResultType: keptnv2.ResultFailed, Message: fmt.Sprintf("Didn't wait because CanaryWaitSeconds (%s:%f) not within MIN=%f & MAX=%f!", data.Test.CanaryWaitDuration, waitDuration.Seconds(), minCanaryWait, maxCanaryWait)}
 }
 
 func abort(k sdk.IKeptn, data *RollbackTriggeredExtendedEventData) (interface{}, *sdk.Error) {

@@ -11,6 +11,7 @@ import (
 )
 
 const serviceName = "argo-service"
+const realUserTestStrategy = "real-user"
 const envVarLogLevel = "LOG_LEVEL"
 const releaseTriggeredEvent = "sh.keptn.event.release.triggered"
 const rollbackTriggeredEvent = "sh.keptn.event.rollback.triggered"
@@ -54,7 +55,7 @@ func testTriggeredFilter(keptnHandle sdk.IKeptn, event sdk.KeptnEvent) bool {
 		return false
 	}
 
-	return data.Test.TestStrategy == handler.RealUserTestStrategy
+	return data.Test.TestStrategy == realUserTestStrategy
 }
 
 func releaseTriggeredFilter(keptnHandle sdk.IKeptn, event sdk.KeptnEvent) bool {
