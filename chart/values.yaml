@@ -10,20 +10,14 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
-distributor:
-  stageFilter: ""                            # Sets the stage this helm service belongs to
-  serviceFilter: ""                          # Sets the service this helm service belongs to
-  projectFilter: ""                          # Sets the project this helm service belongs to
-  image:
-    repository: docker.io/keptn/distributor  # Container Image Name
-    pullPolicy: IfNotPresent                 # Kubernetes Image Pull Policy
-    tag: "0.17.0"                            # Container Tag
+subscription:
+  pubsubTopic: "sh.keptn.>"                  # Sets the events the service subscribes to
 
 remoteControlPlane:
   enabled: false                             # Enables remote execution plane mode
   api:
-    protocol: "https"                        # Used Protocol (http, https)
-    hostname: ""                             # Hostname of the control plane cluster (and Port)
+    protocol: "http"                         # Used Protocol (http, https)
+    hostname: "api-gateway-nginx.keptn"      # Hostname of the control plane cluster (and Port)
     apiValidateTls: true                     # Defines if the control plane certificate should be validated
     token: ""                                # Keptn API Token
 

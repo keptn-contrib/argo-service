@@ -23,7 +23,7 @@ Future versions of this service may support additional integrations with other c
 |    0.13.x     |                            keptncontrib/argo-service:0.9.3                            |
 |    0.14.x     |                            keptncontrib/argo-service:0.9.4                            |
 |    0.17.x     |                            keptncontrib/argo-service:0.9.5                            |
-
+|    0.18.x     |                            keptncontrib/argo-service:0.9.6                            |
 
 ## Argo Rollout Support Explained
 
