@@ -3,6 +3,8 @@
 [![Build Status](https://travis-ci.org/keptn-contrib/argo-service.svg?branch=master)](https://travis-ci.org/keptn-contrib/argo-service)
 [![Go Report Card](https://goreportcard.com/badge/github.com/keptn-contrib/argo-service)](https://goreportcard.com/report/github.com/keptn-contrib/argo-service)
 
+## :warning: This service is currently not maintained - please reach out to the Keptn community via https://slack.keptn.sh if you want to take ownership of this repository and update it to make it work with the latest version of Keptn :warning:
+
 The Argo Service currently supports:
 * Canary and Blue/Green Deployments using [Argo Rollouts](https://argoproj.github.io/argo-rollouts/)
 
